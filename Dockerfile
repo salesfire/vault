@@ -1,4 +1,7 @@
-FROM mhart/alpine-node:0.10
+FROM node:16-alpine
+
+RUN apk update \
+    && apk add --update tar
 
 RUN mkdir -p /vault /usr/src/app
 

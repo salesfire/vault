@@ -1,65 +1,60 @@
 var express = require('express'),
     fs = require('fs'),
-    exec = require('child_process').exec,
+    execSync = require('child_process').execSync,
     mime = require('mime'),
     path = require('path'),
     mkdirp = require('mkdirp');
 
-
 var host = process.env.HTTP_HOST || '0.0.0.0';
 var port = process.env.HTTP_PORT || 3000;
 
-
 var app = express();
 
-
-app.get('/_ping', function (req, res) {
-  res.status(200).end();
+app.get('/_ping', (req, res) => {
+    res.status(200).end();
 });
 
 
 /**
-  Bundle containing all the user's private keys and ssh configuration
+ Bundle containing all the user's private keys and ssh configuration
  */
-app.get('/ssh.tgz', function (req, res) {
-  mkdirp("/vault/.ssh");
-  exec('mktemp -q /tmp/ssh.XXXXXX', function (err, stdout) {
-    var file = stdout.match(/(.+)/)[0];
+app.get('/ssh.tgz', async (req, res) => {
+    mkdirp("/vault/.ssh");
 
-    exec('tar -chz -C /vault/.ssh -f '+ file +' .', function (err, stdout, stderr) {
-      var filename = path.basename(file);
-      var mimetype = mime.lookup(file);
+    const stdout = execSync('mktemp -q /tmp/ssh.XXXXXX');
+    const file = stdout.toString().match(/(.+)/)[0];
 
-      res.setHeader('Content-disposition', 'attachment; filename=' + filename);
-      res.setHeader('Content-type', mimetype);
+    execSync('tar -chz -C /vault/.ssh -f ' + file + ' .');
+    const filename = path.basename(file);
+    const mimetype = mime.lookup(file);
 
-      var filestream = fs.createReadStream(file);
-      filestream.pipe(res);
-      fs.unlink(file)
-    });
-  });
+    res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+    res.setHeader('Content-type', mimetype);
+
+    const filestream = fs.createReadStream(file);
+    await filestream.pipe(res);
+
+    fs.unlinkSync(file);
 });
 
 
 /**
-  Route to get the ONVAULT utility to be used during build
+ Route to get the ONVAULT utility to be used during build
  */
-app.get('/ONVAULT', function (req, res) {
-  var file = path.join(__dirname, 'ONVAULT');
-  var filename = path.basename(file);
-  var mimetype = mime.lookup(file);
+app.get('/ONVAULT', async (req, res) => {
+    var file = path.join(__dirname, 'ONVAULT');
+    var filename = path.basename(file);
+    var mimetype = mime.lookup(file);
 
-  res.setHeader('Content-disposition', 'attachment; filename=' + filename);
-  res.setHeader('Content-type', mimetype);
+    res.setHeader('Content-disposition', 'attachment; filename=' + filename);
+    res.setHeader('Content-type', mimetype);
 
-  var filestream = fs.createReadStream(file);
-  filestream.pipe(res);
+    var filestream = fs.createReadStream(file);
+    await filestream.pipe(res);
 });
-
 
 app.use('/', express.static('/vault'));
 
-
 app.listen(port, host, function () {
-  console.log('Service started on port %d', port);
+    console.log('Service started on port %d', port);
 });
